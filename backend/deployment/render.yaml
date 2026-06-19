@@ -1,0 +1,124 @@
+# ======================================================
+# THERMOS AI - CLOUD MONOREPO BLUEPRINT (RENDER.YAML)
+# ======================================================
+# This infrastructure-as-code file specifies a remote cloud deployment on Render
+# for our Next.js frontend and 6 FastAPI backend microservices.
+
+services:
+  # 1. Next.js Frontend UI (Remote web service)
+  - type: web
+    name: thermos-frontend-prod
+    env: node
+    rootDir: frontend
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://thermos-gateway-prod.onrender.com
+      - key: NEXT_TELEMETRY_DISABLED
+        value: 1
+
+  # 2. API Gateway (Nginx reverse proxy routing)
+  - type: web
+    name: thermos-gateway-prod
+    env: docker
+    dockerfilePath: Dockerfile.gateway
+    ports:
+      - key: PORT
+        value: 80
+    envVars:
+      - key: AUTH_SVC_URL
+        value: http://thermos-auth-prod:8001
+      - key: SAT_SVC_URL
+        value: http://thermos-satellite-prod:8002
+      - key: PRED_SVC_URL
+        value: http://thermos-prediction-prod:8003
+      - key: SIM_SVC_URL
+        value: http://thermos-simulation-prod:8004
+      - key: REC_SVC_URL
+        value: http://thermos-recommendation-prod:8005
+      - key: CHAT_SVC_URL
+        value: http://thermos-chatbot-prod:8006
+
+  # 3. Authentication microservice
+  - type: web
+    name: thermos-auth-prod
+    env: docker
+    dockerfilePath: Dockerfile
+    dockerContext: backend
+    dockerCommand: uvicorn services.authentication-service.main:app --host 0.0.0.0 --port 8001
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: thermos-postgres-prod
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+
+  # 4. Satellite image processor microservice
+  - type: web
+    name: thermos-satellite-prod
+    env: docker
+    dockerfilePath: Dockerfile
+    dockerContext: backend
+    dockerCommand: uvicorn services.satellite-service.main:app --host 0.0.0.0 --port 8002
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: thermos-postgres-prod
+          property: connectionString
+
+  # 5. Forecasting microservice
+  - type: web
+    name: thermos-prediction-prod
+    env: docker
+    dockerfilePath: Dockerfile
+    dockerContext: backend
+    dockerCommand: uvicorn services.prediction-service.main:app --host 0.0.0.0 --port 8003
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: thermos-postgres-prod
+          property: connectionString
+
+  # 6. Climate simulation microservice
+  - type: web
+    name: thermos-simulation-prod
+    env: docker
+    dockerfilePath: Dockerfile
+    dockerContext: backend
+    dockerCommand: uvicorn services.simulation-service.main:app --host 0.0.0.0 --port 8004
+
+  # 7. Mitigation recommendation microservice
+  - type: web
+    name: thermos-recommendation-prod
+    env: docker
+    dockerfilePath: Dockerfile
+    dockerContext: backend
+    dockerCommand: uvicorn services.recommendation-service.main:app --host 0.0.0.0 --port 8005
+
+  # 8. RAG chatbot assistant microservice
+  - type: web
+    name: thermos-chatbot-prod
+    env: docker
+    dockerfilePath: Dockerfile
+    dockerContext: backend
+    dockerCommand: uvicorn services.chatbot-service.main:app --host 0.0.0.0 --port 8006
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          name: thermos-redis-prod
+          property: connectionString
+
+# Managed Cloud Databases
+databases:
+  - name: thermos-postgres-prod
+    plan: standard
+    postgresMajorVersion: 15
+
+# Managed Caching Layer
+interfaces:
+  - type: redis
+    name: thermos-redis-prod
+    plan: standard
+    ipAllowList: [] # Access restricted internally to cluster services

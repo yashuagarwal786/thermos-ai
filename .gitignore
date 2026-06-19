@@ -1,0 +1,55 @@
+# Node
+node_modules/
+.npm
+.yarn
+
+# Next.js
+.next/
+out/
+build/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ML artifacts
+*.pth
+*.pkl
+*.bin
+*.pt
+checkpoints/
+runs/
+mlruns/
+models/
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads
+uploads/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
