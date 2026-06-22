@@ -11,7 +11,7 @@ services:
     plan: free
     env: node
     rootDir: frontend
-    buildCommand: npm run build
+    buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
       - key: NEXT_PUBLIC_API_URL
@@ -44,7 +44,7 @@ services:
     name: thermos-auth-prod
     plan: free
     env: docker
-    dockerfilePath: Dockerfile
+    dockerfilePath: backend/Dockerfile
     dockerContext: backend
     dockerCommand: uvicorn services.authentication-service.main:app --host 0.0.0.0 --port 8001
     envVars:
@@ -60,7 +60,7 @@ services:
     name: thermos-satellite-prod
     plan: free
     env: docker
-    dockerfilePath: Dockerfile
+    dockerfilePath: backend/Dockerfile
     dockerContext: backend
     dockerCommand: uvicorn services.satellite-service.main:app --host 0.0.0.0 --port 8002
     envVars:
@@ -74,7 +74,7 @@ services:
     name: thermos-prediction-prod
     plan: free
     env: docker
-    dockerfilePath: Dockerfile
+    dockerfilePath: backend/Dockerfile
     dockerContext: backend
     dockerCommand: uvicorn services.prediction-service.main:app --host 0.0.0.0 --port 8003
     envVars:
@@ -88,7 +88,7 @@ services:
     name: thermos-simulation-prod
     plan: free
     env: docker
-    dockerfilePath: Dockerfile
+    dockerfilePath: backend/Dockerfile
     dockerContext: backend
     dockerCommand: uvicorn services.simulation-service.main:app --host 0.0.0.0 --port 8004
 
@@ -97,7 +97,7 @@ services:
     name: thermos-recommendation-prod
     plan: free
     env: docker
-    dockerfilePath: Dockerfile
+    dockerfilePath: backend/Dockerfile
     dockerContext: backend
     dockerCommand: uvicorn services.recommendation-service.main:app --host 0.0.0.0 --port 8005
 
@@ -106,7 +106,7 @@ services:
     name: thermos-chatbot-prod
     plan: free
     env: docker
-    dockerfilePath: Dockerfile
+    dockerfilePath: backend/Dockerfile
     dockerContext: backend
     dockerCommand: uvicorn services.chatbot-service.main:app --host 0.0.0.0 --port 8006
     envVars:
