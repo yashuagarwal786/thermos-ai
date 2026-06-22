@@ -22,6 +22,9 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class GoogleAuthRequest(BaseModel):
+    credential: str  # The ID token JWT returned by Google's Sign In button
+
 class Token(BaseModel):
     access_token: str
     refresh_token: str

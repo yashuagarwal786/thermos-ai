@@ -1,20 +1,93 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from '@react-oauth/google'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://thermos-gateway-prod.onrender.com'
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''
 
 export default function AuthPage() {
+  const router = useRouter()
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const storeSessionAndRedirect = (accessToken: string, refreshToken: string) => {
+    localStorage.setItem('thermos_access_token', accessToken)
+    localStorage.setItem('thermos_refresh_token', refreshToken)
+    router.push('/dashboard')
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSuccessMsg(isLogin ? "Successfully authenticated!" : "Account created successfully!")
-    setTimeout(() => {
-      setSuccessMsg('')
-    }, 3000)
+    setErrorMsg('')
+    setLoading(true)
+
+    try {
+      if (isLogin) {
+        const res = await fetch(`${API_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.detail || 'Login failed')
+        }
+        const data = await res.json()
+        setSuccessMsg('Successfully authenticated!')
+        storeSessionAndRedirect(data.access_token, data.refresh_token)
+      } else {
+        const res = await fetch(`${API_URL}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, full_name: name }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.detail || 'Sign up failed')
+        }
+        setSuccessMsg('Account created successfully! Please sign in.')
+        setIsLogin(true)
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Something went wrong')
+    } finally {
+      setLoading(false)
+      setTimeout(() => setSuccessMsg(''), 3000)
+    }
+  }
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    setErrorMsg('')
+    if (!credentialResponse.credential) {
+      setErrorMsg('Google sign-in did not return a credential')
+      return
+    }
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: credentialResponse.credential }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || 'Google sign-in failed')
+      }
+      const data = await res.json()
+      setSuccessMsg('Successfully authenticated with Google!')
+      storeSessionAndRedirect(data.access_token, data.refresh_token)
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Google sign-in failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -31,6 +104,12 @@ export default function AuthPage() {
       {successMsg && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs text-emerald-400 text-center font-semibold">
           {successMsg}
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 text-center font-semibold">
+          {errorMsg}
         </div>
       )}
 
@@ -75,9 +154,10 @@ export default function AuthPage() {
 
         <button
           type="submit"
-          className="w-full py-3 bg-primary text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/25 transition-all mt-2"
+          disabled={loading}
+          className="w-full py-3 bg-primary text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/25 transition-all mt-2 disabled:opacity-50"
         >
-          {isLogin ? 'Sign In' : 'Sign Up'}
+          {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Sign Up'}
         </button>
       </form>
 
@@ -87,9 +167,21 @@ export default function AuthPage() {
         <hr className="flex-grow border-white/5" />
       </div>
 
-      <button className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs text-white font-semibold flex items-center justify-center gap-2 transition-all">
-        <span className="text-sm">🔑</span> OAuth Provider Sign In
-      </button>
+      <div className="flex justify-center">
+        {GOOGLE_CLIENT_ID ? (
+          <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setErrorMsg('Google sign-in failed')}
+              theme="filled_black"
+              shape="pill"
+              text={isLogin ? 'signin_with' : 'signup_with'}
+            />
+          </GoogleOAuthProvider>
+        ) : (
+          <p className="text-xs text-red-400">Google sign-in not configured (missing NEXT_PUBLIC_GOOGLE_CLIENT_ID)</p>
+        )}
+      </div>
 
       <div className="text-center text-xs text-gray-500">
         {isLogin ? "Don't have an account?" : "Already registered?"}{' '}

@@ -3,11 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from typing import List
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
 
 from .config import settings
 from .database import get_db, Base, engine
 from .models import User
-from .schemas import UserCreate, UserResponse, UserLogin, Token, TokenData
+from .schemas import UserCreate, UserResponse, UserLogin, Token, TokenData, GoogleAuthRequest
 from .auth import (
     get_password_hash,
     verify_password,
@@ -76,7 +78,8 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         email=user_data.email,
         hashed_password=hashed_pwd,
         full_name=user_data.full_name,
-        role=user_data.role or "user"
+        role=user_data.role or "user",
+        auth_provider="local"
     )
     db.add(new_user)
     db.commit()
@@ -86,7 +89,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 @app.post("/login", response_model=Token)
 def login(login_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == login_data.email).first()
-    if not user or not verify_password(login_data.password, user.hashed_password):
+    if not user or not user.hashed_password or not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -102,6 +105,70 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": user.email, "role": user.role})
     refresh_token = create_refresh_token(data={"sub": user.email})
     
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
+
+@app.post("/google", response_model=Token)
+def google_login(payload: GoogleAuthRequest, db: Session = Depends(get_db)):
+    """
+    Verifies the Google ID token sent by the frontend's 'Sign in with Google' button,
+    then finds or creates a matching user and issues our own JWT tokens for the rest
+    of the platform, exactly like the regular email/password login does.
+    """
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google sign-in is not configured on the server (missing GOOGLE_CLIENT_ID)"
+        )
+
+    try:
+        idinfo = google_id_token.verify_oauth2_token(
+            payload.credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google token"
+        )
+
+    email = idinfo.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google account has no email"
+        )
+
+    full_name = idinfo.get("name", "")
+
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        # First time this Google account is seen -> create a new account.
+        # No local password is set since this user only authenticates via Google.
+        user = User(
+            email=email,
+            hashed_password=None,
+            full_name=full_name,
+            role="user",
+            auth_provider="google",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user account"
+        )
+
+    access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    refresh_token = create_refresh_token(data={"sub": user.email})
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
