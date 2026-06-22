@@ -8,6 +8,7 @@ services:
   # 1. Next.js Frontend UI (Remote web service)
   - type: web
     name: thermos-frontend-prod
+    plan: free
     env: node
     rootDir: frontend
     buildCommand: npm run build
@@ -21,6 +22,7 @@ services:
   # 2. API Gateway (Nginx reverse proxy routing)
   - type: web
     name: thermos-gateway-prod
+    plan: free
     env: docker
     dockerfilePath: Dockerfile.gateway
     envVars:
@@ -40,6 +42,7 @@ services:
   # 3. Authentication microservice
   - type: web
     name: thermos-auth-prod
+    plan: free
     env: docker
     dockerfilePath: Dockerfile
     dockerContext: backend
@@ -55,6 +58,7 @@ services:
   # 4. Satellite image processor microservice
   - type: web
     name: thermos-satellite-prod
+    plan: free
     env: docker
     dockerfilePath: Dockerfile
     dockerContext: backend
@@ -68,6 +72,7 @@ services:
   # 5. Forecasting microservice
   - type: web
     name: thermos-prediction-prod
+    plan: free
     env: docker
     dockerfilePath: Dockerfile
     dockerContext: backend
@@ -81,6 +86,7 @@ services:
   # 6. Climate simulation microservice
   - type: web
     name: thermos-simulation-prod
+    plan: free
     env: docker
     dockerfilePath: Dockerfile
     dockerContext: backend
@@ -89,6 +95,7 @@ services:
   # 7. Mitigation recommendation microservice
   - type: web
     name: thermos-recommendation-prod
+    plan: free
     env: docker
     dockerfilePath: Dockerfile
     dockerContext: backend
@@ -97,6 +104,7 @@ services:
   # 8. RAG chatbot assistant microservice
   - type: web
     name: thermos-chatbot-prod
+    plan: free
     env: docker
     dockerfilePath: Dockerfile
     dockerContext: backend
@@ -104,18 +112,18 @@ services:
     envVars:
       - key: REDIS_URL
         fromService:
-          type: redis
+          type: keyvalue
           name: thermos-redis-prod
           property: connectionString
 
-  # 9. Managed Caching Layer (Redis)
-  - type: redis
+  # 9. Managed Caching Layer (Redis / Key Value)
+  - type: keyvalue
     name: thermos-redis-prod
-    plan: standard
+    plan: free
     ipAllowList: [] # Access restricted internally to cluster services
 
 # Managed Cloud Databases
 databases:
   - name: thermos-postgres-prod
-    plan: standard
+    plan: free
     postgresMajorVersion: 15
