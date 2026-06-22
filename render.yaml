@@ -23,9 +23,6 @@ services:
     name: thermos-gateway-prod
     env: docker
     dockerfilePath: Dockerfile.gateway
-    ports:
-      - key: PORT
-        value: 80
     envVars:
       - key: AUTH_SVC_URL
         value: http://thermos-auth-prod:8001
@@ -110,15 +107,14 @@ services:
           name: thermos-redis-prod
           property: connectionString
 
+  # 9. Managed Caching Layer (Redis)
+  - type: redis
+    name: thermos-redis-prod
+    plan: standard
+    ipAllowList: [] # Access restricted internally to cluster services
+
 # Managed Cloud Databases
 databases:
   - name: thermos-postgres-prod
     plan: standard
     postgresMajorVersion: 15
-
-# Managed Caching Layer
-interfaces:
-  - type: redis
-    name: thermos-redis-prod
-    plan: standard
-    ipAllowList: [] # Access restricted internally to cluster services
