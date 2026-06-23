@@ -58,6 +58,8 @@ services:
         generateValue: true
       - key: GOOGLE_CLIENT_ID
         sync: false # paste your Google OAuth Client ID here in the Render dashboard
+      - key: CORS_ORIGINS
+        value: https://thermos-frontend-prod.onrender.com,http://localhost:3000
 
   # 4. Satellite image processor microservice
   - type: web
